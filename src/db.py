@@ -1,4 +1,4 @@
-from supabase import create_client, Client
+from supabase import Client, create_client
 
 from src.config import Config
 
@@ -13,11 +13,41 @@ supabase: Client = create_client(
 
 
 def get_people() -> list[dict]:
-    """Return all people with birthdays."""
-    return (
+    """Return all people with their notification recipients."""
+
+    response = (
         supabase
         .table("people")
-        .select("id, name, birthday_month, birthday_day")
+        .select(
+            """
+            id,
+            name,
+            birthday_month,
+            birthday_day,
+            person_recipients(
+                recipient_id,
+                recipients(
+                    id,
+                    name,
+                    email
+                )
+            )
+            """
+        )
         .execute()
-        .data
     )
+
+    return response.data
+
+
+def get_recipients() -> list[dict]:
+    """Return all notification recipients."""
+
+    response = (
+        supabase
+        .table("recipients")
+        .select("id, name, email")
+        .execute()
+    )
+
+    return response.data

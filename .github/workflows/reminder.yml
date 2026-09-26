@@ -25,6 +25,9 @@ jobs:
         env:
           SUPABASE_API_KEY: ${{ secrets.SUPABASE_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+
+          EMAIL_HOST: ${{ vars.EMAIL_HOST}}
+          EMAIL_PORT: ${{ vars.EMAIL_PORT}}
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
         run: python -m main

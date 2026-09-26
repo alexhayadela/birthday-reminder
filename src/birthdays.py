@@ -17,13 +17,25 @@ def days_until_birthday(
         today = date.today()
 
     try:
-        birthday = birthday_this_year(month, day, today.year)
+        birthday = birthday_this_year(
+            month,
+            day,
+            today.year,
+        )
     except ValueError:
         # Handles Feb 29 in a non-leap year.
-        birthday = date(today.year + 1, month, day)
+        birthday = date(
+            today.year + 1,
+            month,
+            day,
+        )
 
     if birthday < today:
-        birthday = birthday_this_year(month, day, today.year + 1)
+        birthday = birthday_this_year(
+            month,
+            day,
+            today.year + 1,
+        )
 
     return (birthday - today).days
 
@@ -38,7 +50,11 @@ def next_birthday(
     if today is None:
         today = date.today()
 
-    days = days_until_birthday(month, day, today)
+    days = days_until_birthday(
+        month,
+        day,
+        today,
+    )
 
     return today + timedelta(days=days)
 

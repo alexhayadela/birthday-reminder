@@ -19,10 +19,14 @@ class Config:
     def __init__(self) -> None:
         load_env()
 
-        self.SUPABASE_URL = self._required("SUPABASE_URL")
-        self.SUPABASE_API_KEY = self._required("SUPABASE_API_KEY")
-        self.EMAIL_USER = self._required("EMAIL_USER")
-        self.EMAIL_PASSWORD = self._required("EMAIL_PASSWORD")
+        self.SUPABASE_URL: str = self._required("SUPABASE_URL")
+        self.SUPABASE_API_KEY: str = self._required("SUPABASE_API_KEY")
+
+        self.EMAIL_HOST: str = self._required("EMAIL_HOST")
+        self.EMAIL_PORT: int = self._required("EMAIL_PORT")
+        self.EMAIL_USER: str = self._required("EMAIL_USER")
+        self.EMAIL_PASSWORD: str = self._required("EMAIL_PASSWORD")
+
 
     @staticmethod
     def _required(name: str) -> str:

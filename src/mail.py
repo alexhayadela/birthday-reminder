@@ -8,14 +8,12 @@ def send_mail(text: str, recipient: str) -> None:
     """Send a plain-text email to the recipient."""
     config = Config()
 
-    sender = config.EMAIL_USER
-    password = config.EMAIL_PASSWORD
-
     message = MIMEText(text, "plain")
     message["Subject"] = "🎂 Birthday reminders"
-    message["From"] = sender
+    message["From"] = config.EMAIL_USER
     message["To"] = recipient
 
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-        server.login(sender, password)
-        server.sendmail(sender, recipient, message.as_string())
+    with smtplib.SMTP_SSL(config.EMAIL_HOST, config.EMAIL_PORT) as server:
+        server.starttls()
+        server.login(config.EMAIL_USER, config.EMAIL_PASSWORD)
+        server.sendmail(config.EMAIL_USER, recipient, message.as_string())
