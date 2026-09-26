@@ -1,4 +1,4 @@
-from collections import defaultdict
+import logging
 from datetime import date
 
 from src.birthdays import get_upcoming_birthdays
@@ -6,13 +6,25 @@ from src.db import get_people
 from src.notifier import send_notification
 
 
+logger = logging.getLogger(__name__)
+
 REMINDER_DAYS = 2
 UPCOMING_COUNT = 4
 
 
 def fetch_people() -> list[dict]:
     """Fetch people and their notification recipients."""
-    return get_people()
+
+    logger.info("Fetching people")
+
+    people = get_people()
+
+    logger.info(
+        "Fetched %d people",
+        len(people),
+    )
+
+    return people
 
 
 def calculate_upcoming_birthdays(
@@ -20,7 +32,26 @@ def calculate_upcoming_birthdays(
 ) -> list[dict]:
     """Calculate and sort everyone's next birthday."""
 
-    return get_upcoming_birthdays(people)
+    logger.info(
+        "Calculating upcoming birthdays for %d people",
+        len(people),
+    )
+
+    birthdays = get_upcoming_birthdays(people)
+
+    logger.debug(
+        "Upcoming birthdays: %s",
+        [
+            {
+                "name": person["name"],
+                "next_birthday": person["next_birthday"],
+                "days_until": person["days_until"],
+            }
+            for person in birthdays
+        ],
+    )
+
+    return birthdays
 
 
 def get_reminder_birthdays(
@@ -29,11 +60,24 @@ def get_reminder_birthdays(
 ) -> list[dict]:
     """Return birthdays that need a reminder."""
 
-    return [
+    reminders = [
         person
         for person in birthdays
         if person["days_until"] == reminder_days
     ]
+
+    logger.info(
+        "Found %d birthdays requiring a reminder in %d days",
+        len(reminders),
+        reminder_days,
+    )
+
+    logger.debug(
+        "Reminder birthdays: %s",
+        [person["name"] for person in reminders],
+    )
+
+    return reminders
 
 
 def get_next_birthdays(
@@ -42,7 +86,21 @@ def get_next_birthdays(
 ) -> list[dict]:
     """Return the next N upcoming birthdays."""
 
-    return birthdays[:count]
+    upcoming = birthdays[:count]
+
+    logger.debug(
+        "Selected next %d birthdays: %s",
+        count,
+        [
+            {
+                "name": person["name"],
+                "days_until": person["days_until"],
+            }
+            for person in upcoming
+        ],
+    )
+
+    return upcoming
 
 
 def format_birthday_date(birthday: date) -> str:
@@ -56,6 +114,12 @@ def build_notification(
     upcoming: list[dict],
 ) -> str:
     """Build a notification message."""
+
+    logger.debug(
+        "Building notification: reminders=%d, upcoming=%d",
+        len(reminders),
+        len(upcoming),
+    )
 
     lines = []
 
@@ -72,9 +136,8 @@ def build_notification(
                 f"{person['days_until']} days ({birthday})."
             )
 
-        lines.append("")
-
     if upcoming:
+        lines.append("")
         lines.append("📅 Next birthdays\n")
 
         for person in upcoming:
@@ -87,7 +150,14 @@ def build_notification(
                 f"({person['days_until']} days)"
             )
 
-    return "\n".join(lines)
+    message = "\n".join(lines)
+
+    logger.debug(
+        "Notification built: %d characters",
+        len(message),
+    )
+
+    return message
 
 
 def group_birthdays_by_recipient(
@@ -100,15 +170,27 @@ def group_birthdays_by_recipient(
     associated with in person_recipients.
     """
 
+    logger.info(
+        "Grouping %d birthdays by recipient",
+        len(birthdays),
+    )
+
     grouped: dict[int, dict] = {}
 
     for person in birthdays:
-        for relationship in person.get(
+        relationships = person.get(
             "person_recipients",
             [],
-        ):
-            recipient = relationship["recipients"]
+        )
 
+        logger.debug(
+            "Person %s has %d recipient relationships",
+            person["name"],
+            len(relationships),
+        )
+
+        for relationship in relationships:
+            recipient = relationship["recipients"]
             recipient_id = recipient["id"]
 
             if recipient_id not in grouped:
@@ -119,11 +201,26 @@ def group_birthdays_by_recipient(
 
             grouped[recipient_id]["birthdays"].append(person)
 
+    logger.info(
+        "Created birthday groups for %d recipients",
+        len(grouped),
+    )
+
+    logger.debug(
+        "Recipient birthday counts: %s",
+        {
+            recipient_id: len(data["birthdays"])
+            for recipient_id, data in grouped.items()
+        },
+    )
+
     return grouped
 
 
 def run_pipeline() -> None:
     """Run the birthday notification pipeline."""
+
+    logger.info("========== Birthday pipeline started ==========")
 
     people = fetch_people()
 
@@ -132,7 +229,15 @@ def run_pipeline() -> None:
     reminders = get_reminder_birthdays(birthdays)
 
     if not reminders:
+        logger.info(
+            "No birthdays require a reminder today; pipeline finished"
+        )
         return
+
+    logger.info(
+        "Processing %d reminder birthdays",
+        len(reminders),
+    )
 
     birthdays_by_recipient = group_birthdays_by_recipient(
         birthdays
@@ -142,6 +247,12 @@ def run_pipeline() -> None:
         recipient = recipient_data["recipient"]
         recipient_birthdays = recipient_data["birthdays"]
 
+        logger.debug(
+            "Processing recipient id=%s, birthdays=%d",
+            recipient["id"],
+            len(recipient_birthdays),
+        )
+
         recipient_reminders = [
             person
             for person in recipient_birthdays
@@ -149,7 +260,17 @@ def run_pipeline() -> None:
         ]
 
         if not recipient_reminders:
+            logger.debug(
+                "Recipient id=%s has no birthdays requiring a reminder",
+                recipient["id"],
+            )
             continue
+
+        logger.info(
+            "Recipient id=%s has %d reminder birthdays",
+            recipient["id"],
+            len(recipient_reminders),
+        )
 
         recipient_upcoming = get_next_birthdays(
             recipient_birthdays
@@ -160,7 +281,14 @@ def run_pipeline() -> None:
             upcoming=recipient_upcoming,
         )
 
+        logger.info(
+            "Sending notification to recipient id=%s",
+            recipient["id"],
+        )
+
         send_notification(
             message=message,
             recipient=recipient["email"],
         )
+
+    logger.info("========== Birthday pipeline finished ==========")
