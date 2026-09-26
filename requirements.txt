@@ -1,2 +1,2 @@
-supabase
-dotenv
+supabase==2.31.0
+dotenv==0.9.9
